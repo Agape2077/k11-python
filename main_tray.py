@@ -10,6 +10,7 @@ class AppManager:
     def __init__(self):
         self.driver = MouseDriver()
         self.running = True
+        self.toaster = WindowsToaster('K-snake X11 Driver')
         self.ui = None
         
         # 1. 基础变量初始化
@@ -34,6 +35,18 @@ class AppManager:
         # 4. 启动后台轮询线程
         self.monitor_thread = threading.Thread(target=self.hardware_monitor_loop, daemon=True)
         self.monitor_thread.start()
+    def send_toast(self, message, title, tag):
+        """发送覆盖式通知，相同的 tag 会互相替换"""
+        new_toast = Toast()
+        new_toast.text_fields = [title, message]
+        # 🌟 关键：设置 Tag 和 Group，让新通知替换旧通知
+        new_toast.tag = tag
+        new_toast.group = "KSnake"
+        # 🌟 关键：设置场景为 'incomingCall' 或 'alarm' 会让它更突出
+        # 或者保持默认，但通过 Tag 来控制数量
+        self.toaster.show_toast(new_toast)
+
+        
 
     def update_dpi_list(self, new_list):
         """当 UI 读取到或设置了新 DPI 时，同步给主控"""
@@ -71,21 +84,36 @@ class AppManager:
         w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
         draw.text(((img_size - w) / 2, (img_size - h) / 2 - 5), text, fill=text_color, font=font)
         return image
+    def update_dpi_config(self, new_dpi_list, current_idx=None):
+
+        self.dpi_list = new_dpi_list
+        if current_idx is not None:
+            self.last_dpi_idx = current_idx
+        print(f"🔔 Toast 服務已接收更新！當前數值清單: {self.dpi_list}")
 
     def hardware_monitor_loop(self):
-        """后台监控循环"""
         last_battery_req = 0
         last_is_dark = self.is_windows_dark_mode()
-        print("🚀 后台监控线程已启动...")
         
         while self.running:
             try:
                 if not self.driver.connected:
                     self.tray_icon.icon = self.create_text_icon("X")
                     if self.driver.connect():
-                        print("✅ 硬件已重新连接")
-                        if self.ui and self.ui.root.winfo_exists():
-                            self.ui.root.after(0, self.ui.sync_ui_from_mouse)
+                        print("✅ 硬體已連接，正在同步硬體記憶體中的 DPI 設定...")
+                        
+                        # 🌟 核心修改：連上後立刻主動讀取一次完整配置
+                        config = self.driver.get_mouse_config()
+                        if config:
+                            # 把滑鼠內部的真實 DPI 數值同步到主控的 dpi_list 裡
+                            self.dpi_list = config["dpis"]
+                            self.last_dpi_idx = config["dpi_index"] # 同步當前檔位，防止啟動就彈窗
+                            print(f"🎯 同步成功！當前硬體 DPI 列表: {self.dpi_list}")
+                            
+                            # 如果 UI 開著，也通知 UI 更新
+                            if self.ui and self.ui.root.winfo_exists():
+                                self.ui.root.after(0, self.ui.sync_ui_from_mouse)
+                        
                     time.sleep(2)
                     continue
                     
@@ -134,7 +162,7 @@ class AppManager:
                         current_dpi_val = self.dpi_list[idx] if idx < len(self.dpi_list) else "未知"
                         
                         if idx != self.last_dpi_idx and self.last_dpi_idx != -1:
-                            self.send_toast(f"{current_dpi_val} DPI", "DPI 变更", "DPI")                        
+                            self.send_toast(f"{current_dpi_val} DPI ", "DPI 变更", "DPI")
                         self.last_dpi_idx = idx
                         if self.ui and self.ui.root.winfo_exists():
                             self.ui.root.after(0, lambda i=idx: self.ui.current_dpi_var.set(i))
@@ -160,25 +188,8 @@ class AppManager:
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
         # 初始化 UI 并将主控实例传给 UI
         self.ui = SettingsWindow(self.driver)
-        self.toaster = WindowsToaster('K-snake X11 Driver')
         self.ui.app_manager = self 
         self.ui.root.mainloop()
-        # 在 main_tray.py 的 AppManager 類中
-    def update_dpi_config(self, new_dpi_list, current_idx=None):
-        self.dpi_list = new_dpi_list
-        if current_idx is not None:
-            self.last_dpi_idx = current_idx
-        print(f"🔔 Toast 服務已接收更新！當前數值清單: {self.dpi_list}")
-    def send_toast(self, message, title, tag):
-        """发送覆盖式通知，相同的 tag 会互相替换"""
-        new_toast = Toast()
-        new_toast.text_fields = [title, message]
-        # 🌟 关键：设置 Tag 和 Group，让新通知替换旧通知
-        new_toast.tag = tag
-        new_toast.group = "KSnake"
-        # 🌟 关键：设置场景为 'incomingCall' 或 'alarm' 会让它更突出
-        # 或者保持默认，但通过 Tag 来控制数量
-        self.toaster.show_toast(new_toast)
 
 if __name__ == "__main__":
     app = AppManager()
