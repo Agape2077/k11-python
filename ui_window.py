@@ -64,12 +64,12 @@ class SettingsWindow:
         ttk.Radiobutton(perf_frame, text="1.0 mm", variable=self.lod_var, value=1).grid(row=6, column=2, padx=20, sticky=tk.W)
         ttk.Radiobutton(perf_frame, text="2.0 mm", variable=self.lod_var, value=2).grid(row=7, column=2, padx=20, sticky=tk.W)
 
-        # 2. 灯光设置页
-        light_frame = ttk.Frame(notebook, padding=10)
-        notebook.add(light_frame, text="灯光效果")
-        lights = ["常亮模式", "呼吸模式", "霓虹模式", "波浪模式", "闪烁模式", "反应模式", "关闭灯光"]
-        for i, text in enumerate(lights):
-            ttk.Radiobutton(light_frame, text=text, variable=self.light_mode_var, value=i, command=self.apply_lighting).pack(anchor=tk.W, pady=5)
+        # # 2. 灯光设置页
+        # light_frame = ttk.Frame(notebook, padding=10)
+        # notebook.add(light_frame, text="灯光效果")
+        # lights = ["常亮模式", "呼吸模式", "霓虹模式", "波浪模式", "闪烁模式", "反应模式", "关闭灯光"]
+        # for i, text in enumerate(lights):
+        #     ttk.Radiobutton(light_frame, text=text, variable=self.light_mode_var, value=i, command=self.apply_lighting).pack(anchor=tk.W, pady=5)
 
         # 底部应用按钮
         btn_frame = ttk.Frame(self.root, padding=10)
